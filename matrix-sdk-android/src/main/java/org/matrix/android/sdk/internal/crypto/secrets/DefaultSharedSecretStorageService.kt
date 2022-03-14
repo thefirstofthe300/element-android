@@ -38,6 +38,7 @@ import org.matrix.android.sdk.api.session.securestorage.SsssPassphrase
 import org.matrix.android.sdk.internal.crypto.OutgoingGossipingRequestManager
 import org.matrix.android.sdk.internal.crypto.SSSS_ALGORITHM_AES_HMAC_SHA2
 import org.matrix.android.sdk.internal.crypto.SSSS_ALGORITHM_CURVE25519_AES_SHA2
+import org.matrix.android.sdk.internal.crypto.SecretShareManager
 import org.matrix.android.sdk.internal.crypto.crosssigning.fromBase64
 import org.matrix.android.sdk.internal.crypto.crosssigning.toBase64NoPadding
 import org.matrix.android.sdk.internal.crypto.keysbackup.generatePrivateKeyWithPassword
@@ -57,7 +58,7 @@ import kotlin.experimental.and
 internal class DefaultSharedSecretStorageService @Inject constructor(
         @UserId private val userId: String,
         private val accountDataService: SessionAccountDataService,
-        private val outgoingGossipingRequestManager: OutgoingGossipingRequestManager,
+        private val secretShareManager: SecretShareManager,
         private val coroutineDispatchers: MatrixCoroutineDispatchers,
         private val cryptoCoroutineScope: CoroutineScope
 ) : SharedSecretStorageService {
@@ -378,10 +379,7 @@ internal class DefaultSharedSecretStorageService @Inject constructor(
         return IntegrityResult.Success(keyInfo.content.passphrase != null)
     }
 
-    override fun requestSecret(name: String, myOtherDeviceId: String) {
-        outgoingGossipingRequestManager.sendSecretShareRequest(
-                name,
-                mapOf(userId to listOf(myOtherDeviceId))
-        )
+    override suspend fun requestSecret(name: String, myOtherDeviceId: String) {
+        secretShareManager.requestSecretTo(myOtherDeviceId, name)
     }
 }

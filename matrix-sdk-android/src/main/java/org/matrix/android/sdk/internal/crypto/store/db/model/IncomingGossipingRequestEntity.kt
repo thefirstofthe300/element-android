@@ -26,6 +26,7 @@ import org.matrix.android.sdk.internal.crypto.IncomingSecretShareRequest
 import org.matrix.android.sdk.internal.crypto.IncomingShareRequestCommon
 import org.matrix.android.sdk.internal.crypto.model.rest.RoomKeyRequestBody
 
+// not used anymore, just here for db migration
 internal open class IncomingGossipingRequestEntity(@Index var requestId: String? = "",
                                                    @Index var typeStr: String? = null,
                                                    var otherUserId: String? = null,

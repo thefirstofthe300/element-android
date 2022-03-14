@@ -19,7 +19,7 @@ package org.matrix.android.sdk.internal.crypto
 interface OutgoingGossipingRequest {
     var recipients: Map<String, List<String>>
     var requestId: String
-    var state: OutgoingGossipingRequestState
+    var state: OutgoingRoomKeyRequestState
     // transaction id for the cancellation, if any
     // var cancellationTxnId: String?
 }

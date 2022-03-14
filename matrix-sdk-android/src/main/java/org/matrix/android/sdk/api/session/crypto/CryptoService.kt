@@ -31,8 +31,9 @@ import org.matrix.android.sdk.api.session.events.model.Event
 import org.matrix.android.sdk.internal.crypto.IncomingRoomKeyRequest
 import org.matrix.android.sdk.internal.crypto.MXEventDecryptionResult
 import org.matrix.android.sdk.internal.crypto.NewSessionListener
-import org.matrix.android.sdk.internal.crypto.OutgoingRoomKeyRequest
+import org.matrix.android.sdk.internal.crypto.OutgoingKeyRequest
 import org.matrix.android.sdk.internal.crypto.crosssigning.DeviceTrustLevel
+import org.matrix.android.sdk.internal.crypto.model.AuditTrail
 import org.matrix.android.sdk.internal.crypto.model.CryptoDeviceInfo
 import org.matrix.android.sdk.internal.crypto.model.ImportRoomKeysResult
 import org.matrix.android.sdk.internal.crypto.model.MXDeviceInfo
@@ -41,7 +42,6 @@ import org.matrix.android.sdk.internal.crypto.model.MXUsersDevicesMap
 import org.matrix.android.sdk.internal.crypto.model.event.RoomKeyWithHeldContent
 import org.matrix.android.sdk.internal.crypto.model.rest.DeviceInfo
 import org.matrix.android.sdk.internal.crypto.model.rest.DevicesListResponse
-import org.matrix.android.sdk.internal.crypto.model.rest.RoomKeyRequestBody
 
 interface CryptoService {
 
@@ -95,8 +95,6 @@ interface CryptoService {
 
     fun reRequestRoomKeyForEvent(event: Event)
 
-    fun cancelRoomKeyRequest(requestBody: RoomKeyRequestBody)
-
     fun addRoomKeysRequestListener(listener: GossipingRequestListener)
 
     fun removeRoomKeysRequestListener(listener: GossipingRequestListener)
@@ -143,14 +141,14 @@ interface CryptoService {
 
     fun removeSessionListener(listener: NewSessionListener)
 
-    fun getOutgoingRoomKeyRequests(): List<OutgoingRoomKeyRequest>
-    fun getOutgoingRoomKeyRequestsPaged(): LiveData<PagedList<OutgoingRoomKeyRequest>>
+    fun getOutgoingRoomKeyRequests(): List<OutgoingKeyRequest>
+    fun getOutgoingRoomKeyRequestsPaged(): LiveData<PagedList<OutgoingKeyRequest>>
 
     fun getIncomingRoomKeyRequests(): List<IncomingRoomKeyRequest>
     fun getIncomingRoomKeyRequestsPaged(): LiveData<PagedList<IncomingRoomKeyRequest>>
 
-    fun getGossipingEventsTrail(): LiveData<PagedList<Event>>
-    fun getGossipingEvents(): List<Event>
+    fun getGossipingEventsTrail(): LiveData<PagedList<AuditTrail>>
+    fun getGossipingEvents(): List<AuditTrail>
 
     // For testing shared session
     fun getSharedWithInfo(roomId: String?, sessionId: String): MXUsersDevicesMap<Int>

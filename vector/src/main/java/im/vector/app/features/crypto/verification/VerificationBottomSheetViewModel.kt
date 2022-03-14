@@ -54,7 +54,6 @@ import org.matrix.android.sdk.internal.crypto.crosssigning.fromBase64
 import org.matrix.android.sdk.internal.crypto.crosssigning.isVerified
 import org.matrix.android.sdk.internal.crypto.keysbackup.model.rest.KeysVersionResult
 import org.matrix.android.sdk.internal.crypto.keysbackup.util.computeRecoveryKey
-import org.matrix.android.sdk.internal.crypto.model.ImportRoomKeysResult
 import org.matrix.android.sdk.internal.util.awaitCallback
 import timber.log.Timber
 
@@ -420,6 +419,11 @@ class VerificationBottomSheetViewModel @AssistedInject constructor(
     }
 
     private fun tentativeRestoreBackup(res: Map<String, String>?) {
+        // It's not a good idea to download the full backup, it might take very long
+        // and use a lot of resources
+        // Just check that the ey is valid and store it, the backup will be used megolm session per
+        // megolm session when an UISI is encountered
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val secret = res?.get(KEYBACKUP_SECRET_SSSS_NAME) ?: return@launch Unit.also {
@@ -430,17 +434,13 @@ class VerificationBottomSheetViewModel @AssistedInject constructor(
                     session.cryptoService().keysBackupService().getCurrentVersion(it)
                 } ?: return@launch
 
-                awaitCallback<ImportRoomKeysResult> {
-                    session.cryptoService().keysBackupService().restoreKeysWithRecoveryKey(
-                            version,
-                            computeRecoveryKey(secret.fromBase64()),
-                            null,
-                            null,
-                            null,
-                            it
-                    )
+                val recoveryKey = computeRecoveryKey(secret.fromBase64())
+                val isValid = awaitCallback<Boolean> {
+                    session.cryptoService().keysBackupService().isValidRecoveryKeyForCurrentVersion(recoveryKey, it)
                 }
-
+                if (isValid) {
+                    session.cryptoService().keysBackupService().saveBackupRecoveryKey(recoveryKey, version.version)
+                }
                 awaitCallback<Unit> {
                     session.cryptoService().keysBackupService().trustKeysBackupVersion(version, true, it)
                 }

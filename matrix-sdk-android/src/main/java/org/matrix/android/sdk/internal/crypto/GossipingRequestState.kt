@@ -44,3 +44,18 @@ enum class OutgoingGossipingRequestState {
     FAILED_TO_SEND,
     FAILED_TO_CANCEL
 }
+
+enum class OutgoingRoomKeyRequestState {
+    UNSENT,
+    SENT,
+    CANCELLATION_PENDING,
+    CANCELLATION_PENDING_AND_WILL_RESEND;
+
+    companion object {
+        fun pendingStates() = setOf(
+                UNSENT,
+                CANCELLATION_PENDING_AND_WILL_RESEND,
+                CANCELLATION_PENDING
+        )
+    }
+}

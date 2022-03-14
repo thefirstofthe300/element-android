@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Matrix.org Foundation C.I.C.
+ * Copyright (c) 2022 New Vector Ltd
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,44 +16,42 @@
 
 package org.matrix.android.sdk.internal.crypto
 
-import com.squareup.moshi.JsonClass
+import org.matrix.android.sdk.internal.crypto.model.event.WithHeldCode
 import org.matrix.android.sdk.internal.crypto.model.rest.RoomKeyRequestBody
 
-/**
- * Represents an outgoing room key request
- */
-@JsonClass(generateAdapter = true)
-data class OutgoingRoomKeyRequest(
-        // RequestBody
+data class RequestReply(
+        val userId: String,
+        val fromDevice: String?,
+        val result: RequestResult
+)
+
+sealed class RequestResult {
+    object Success : RequestResult()
+    data class Failure(val code: WithHeldCode) : RequestResult()
+}
+
+data class OutgoingKeyRequest(
         var requestBody: RoomKeyRequestBody?,
-        // list of recipients for the request
-        override var recipients: Map<String, List<String>>,
+        // recipients for the request map of users to list of deviceId
+        val recipients: Map<String, List<String>>,
         // Unique id for this request. Used for both
         // an id within the request for later pairing with a cancellation, and for
         // the transaction id when sending the to_device messages to our local
-        override var requestId: String, // current state of this request
-        override var state: OutgoingRoomKeyRequestState
-        // transaction id for the cancellation, if any
-        // override var cancellationTxnId: String? = null
-) : OutgoingGossipingRequest {
-
+        val requestId: String, // current state of this request
+        val state: OutgoingRoomKeyRequestState,
+        val results: List<RequestReply>
+) {
     /**
      * Used only for log.
      *
      * @return the room id.
      */
-    val roomId: String?
-        get() = if (null != requestBody) {
-            requestBody!!.roomId
-        } else null
+    val roomId = requestBody?.roomId
 
     /**
      * Used only for log.
      *
      * @return the session id
      */
-    val sessionId: String?
-        get() = if (null != requestBody) {
-            requestBody!!.sessionId
-        } else null
+    val sessionId = requestBody?.sessionId
 }

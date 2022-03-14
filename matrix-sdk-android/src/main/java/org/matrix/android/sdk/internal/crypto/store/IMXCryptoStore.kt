@@ -25,9 +25,10 @@ import org.matrix.android.sdk.internal.crypto.GossipingRequestState
 import org.matrix.android.sdk.internal.crypto.IncomingRoomKeyRequest
 import org.matrix.android.sdk.internal.crypto.IncomingShareRequestCommon
 import org.matrix.android.sdk.internal.crypto.NewSessionListener
-import org.matrix.android.sdk.internal.crypto.OutgoingGossipingRequestState
-import org.matrix.android.sdk.internal.crypto.OutgoingRoomKeyRequest
+import org.matrix.android.sdk.internal.crypto.OutgoingKeyRequest
+import org.matrix.android.sdk.internal.crypto.OutgoingRoomKeyRequestState
 import org.matrix.android.sdk.internal.crypto.OutgoingSecretRequest
+import org.matrix.android.sdk.internal.crypto.model.AuditTrail
 import org.matrix.android.sdk.internal.crypto.model.CryptoCrossSigningKey
 import org.matrix.android.sdk.internal.crypto.model.CryptoDeviceInfo
 import org.matrix.android.sdk.internal.crypto.model.MXUsersDevicesMap
@@ -35,6 +36,7 @@ import org.matrix.android.sdk.internal.crypto.model.OlmInboundGroupSessionWrappe
 import org.matrix.android.sdk.internal.crypto.model.OlmSessionWrapper
 import org.matrix.android.sdk.internal.crypto.model.OutboundGroupSessionWrapper
 import org.matrix.android.sdk.internal.crypto.model.event.RoomKeyWithHeldContent
+import org.matrix.android.sdk.internal.crypto.model.event.WithHeldCode
 import org.matrix.android.sdk.internal.crypto.model.rest.DeviceInfo
 import org.matrix.android.sdk.internal.crypto.model.rest.RoomKeyRequestBody
 import org.matrix.android.sdk.internal.crypto.store.db.model.KeysBackupDataEntity
@@ -375,7 +377,9 @@ internal interface IMXCryptoStore {
      * @param requestBody the request body
      * @return an OutgoingRoomKeyRequest instance or null
      */
-    fun getOutgoingRoomKeyRequest(requestBody: RoomKeyRequestBody): OutgoingRoomKeyRequest?
+    fun getOutgoingRoomKeyRequest(requestBody: RoomKeyRequestBody): OutgoingKeyRequest?
+    fun getOutgoingRoomKeyRequest(requestId: String): OutgoingKeyRequest?
+    fun getOutgoingRoomKeyRequest(roomId: String, sessionId: String, algorithm: String, senderKey: String): List<OutgoingKeyRequest>
 
     /**
      * Look for an existing outgoing room key request, and if none is found, add a new one.
@@ -383,13 +387,52 @@ internal interface IMXCryptoStore {
      * @param request the request
      * @return either the same instance as passed in, or the existing one.
      */
-    fun getOrAddOutgoingRoomKeyRequest(requestBody: RoomKeyRequestBody, recipients: Map<String, List<String>>): OutgoingRoomKeyRequest?
+    fun getOrAddOutgoingRoomKeyRequest(requestBody: RoomKeyRequestBody, recipients: Map<String, List<String>>): OutgoingKeyRequest
+    fun updateOutgoingRoomKeyRequestState(requestId: String, newState: OutgoingRoomKeyRequestState)
+    fun updateOutgoingRoomKeyReply(
+            roomId: String,
+            sessionId: String,
+            algorithm: String,
+            senderKey: String, fromDevice: String?, event: Event)
+
+    fun deleteOutgoingRoomKeyRequest(requestId: String)
 
     fun getOrAddOutgoingSecretShareRequest(secretName: String, recipients: Map<String, List<String>>): OutgoingSecretRequest?
 
+    @Deprecated("TODO")
     fun saveGossipingEvent(event: Event) = saveGossipingEvents(listOf(event))
 
+    @Deprecated("TODO")
     fun saveGossipingEvents(events: List<Event>)
+
+    fun saveIncomingKeyRequestAuditTrail(
+            roomId: String,
+            sessionId: String,
+            senderKey: String,
+            algorithm: String,
+            fromUser: String,
+            fromDevice: String
+    )
+
+    fun saveWithheldAuditTrail(
+            roomId: String,
+            sessionId: String,
+            senderKey: String,
+            algorithm: String,
+            code: WithHeldCode,
+            userId: String,
+            deviceId: String
+    )
+
+    fun saveForwardKeyAuditTrail(
+            roomId: String,
+            sessionId: String,
+            senderKey: String,
+            algorithm: String,
+            userId: String,
+            deviceId: String,
+            chainIndex: Long?
+    )
 
     fun updateGossipingRequestState(request: IncomingShareRequestCommon, state: GossipingRequestState) {
         updateGossipingRequestState(
@@ -415,7 +458,7 @@ internal interface IMXCryptoStore {
      */
     fun getIncomingRoomKeyRequest(userId: String, deviceId: String, requestId: String): IncomingRoomKeyRequest?
 
-    fun updateOutgoingGossipingRequestState(requestId: String, state: OutgoingGossipingRequestState)
+    fun updateOutgoingGossipingRequestState(requestId: String, state: OutgoingRoomKeyRequestState)
 
     fun addNewSessionListener(listener: NewSessionListener)
 
@@ -475,17 +518,18 @@ internal interface IMXCryptoStore {
     fun getSharedWithInfo(roomId: String?, sessionId: String): MXUsersDevicesMap<Int>
     // Dev tools
 
-    fun getOutgoingRoomKeyRequests(): List<OutgoingRoomKeyRequest>
-    fun getOutgoingRoomKeyRequestsPaged(): LiveData<PagedList<OutgoingRoomKeyRequest>>
+    fun getOutgoingRoomKeyRequests(): List<OutgoingKeyRequest>
+    fun getOutgoingRoomKeyRequestsPaged(): LiveData<PagedList<OutgoingKeyRequest>>
     fun getOutgoingSecretKeyRequests(): List<OutgoingSecretRequest>
     fun getOutgoingSecretRequest(secretName: String): OutgoingSecretRequest?
     fun getIncomingRoomKeyRequests(): List<IncomingRoomKeyRequest>
     fun getIncomingRoomKeyRequestsPaged(): LiveData<PagedList<IncomingRoomKeyRequest>>
-    fun getGossipingEventsTrail(): LiveData<PagedList<Event>>
-    fun getGossipingEvents(): List<Event>
+    fun getGossipingEventsTrail(): LiveData<PagedList<AuditTrail>>
+    fun getGossipingEvents(): List<AuditTrail>
 
     fun setDeviceKeysUploaded(uploaded: Boolean)
     fun areDeviceKeysUploaded(): Boolean
     fun tidyUpDataBase()
     fun logDbUsageInfo()
+    fun getOutgoingRoomKeyRequests(inStates: Set<OutgoingRoomKeyRequestState>): List<OutgoingKeyRequest>
 }
