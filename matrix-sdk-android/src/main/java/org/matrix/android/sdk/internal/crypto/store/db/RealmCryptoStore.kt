@@ -1276,11 +1276,33 @@ internal class RealmCryptoStore @Inject constructor(
                                           userId: String,
                                           deviceId: String,
                                           chainIndex: Long?) {
+        saveForwardKeyTrail(roomId, sessionId, senderKey, algorithm, userId, deviceId, chainIndex, false)
+    }
+
+    override fun saveIncomingForwardKeyAuditTrail(roomId: String,
+                                                  sessionId: String,
+                                                  senderKey: String,
+                                                  algorithm: String,
+                                                  userId: String,
+                                                  deviceId: String,
+                                                  chainIndex: Long?) {
+        saveForwardKeyTrail(roomId, sessionId, senderKey, algorithm, userId, deviceId, chainIndex, true)
+    }
+
+    private fun saveForwardKeyTrail(roomId: String,
+                                    sessionId: String,
+                                    senderKey: String,
+                                    algorithm: String,
+                                    userId: String,
+                                    deviceId: String,
+                                    chainIndex: Long?,
+                                    incoming: Boolean
+    ) {
         monarchy.writeAsync { realm ->
             val now = System.currentTimeMillis()
             realm.createObject<AuditTrailEntity>().apply {
                 this.ageLocalTs = now
-                this.type = TrailType.OutgoingKeyForward.name
+                this.type = if (incoming) TrailType.IncomingKeyForward.name else TrailType.OutgoingKeyForward.name
                 val info = ForwardInfo(
                         roomId = roomId,
                         sessionId = sessionId,
