@@ -19,7 +19,7 @@ import org.matrix.android.sdk.api.MatrixCallback
 import org.matrix.android.sdk.api.session.crypto.crosssigning.CrossSigningService
 import org.matrix.android.sdk.api.session.crypto.verification.VerificationTransaction
 import org.matrix.android.sdk.api.session.crypto.verification.VerificationTxState
-import org.matrix.android.sdk.internal.crypto.OutgoingGossipingRequestManager
+import org.matrix.android.sdk.internal.crypto.OutgoingKeyRequestManager
 import org.matrix.android.sdk.internal.crypto.SecretShareManager
 import org.matrix.android.sdk.internal.crypto.actions.SetDeviceVerificationAction
 import org.matrix.android.sdk.internal.crypto.crosssigning.DeviceTrustLevel
@@ -31,7 +31,7 @@ import timber.log.Timber
 internal abstract class DefaultVerificationTransaction(
         private val setDeviceVerificationAction: SetDeviceVerificationAction,
         private val crossSigningService: CrossSigningService,
-        private val outgoingGossipingRequestManager: OutgoingGossipingRequestManager,
+        private val outgoingKeyRequestManager: OutgoingKeyRequestManager,
         private val secretShareManager: SecretShareManager,
         private val userId: String,
         override val transactionId: String,
