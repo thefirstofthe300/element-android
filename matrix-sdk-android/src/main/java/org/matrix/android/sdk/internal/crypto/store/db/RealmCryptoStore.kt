@@ -925,6 +925,18 @@ internal class RealmCryptoStore @Inject constructor(
         }
     }
 
+    override fun enableKeyGossiping(enable: Boolean) {
+        doRealmTransaction(realmConfiguration) {
+            it.where<CryptoMetadataEntity>().findFirst()?.globalEnableKeyRequestingAndSharing = enable
+        }
+    }
+
+    override fun isKeyGossipingEnabled(): Boolean {
+        return doWithRealm(realmConfiguration) {
+            it.where<CryptoMetadataEntity>().findFirst()?.globalEnableKeyRequestingAndSharing
+        } ?: true
+    }
+
     override fun getGlobalBlacklistUnverifiedDevices(): Boolean {
         return doWithRealm(realmConfiguration) {
             it.where<CryptoMetadataEntity>().findFirst()?.globalBlacklistUnverifiedDevices
@@ -1209,6 +1221,16 @@ internal class RealmCryptoStore @Inject constructor(
             realm.where<OutgoingKeyRequestEntity>()
                     .equalTo(OutgoingKeyRequestEntityFields.REQUEST_ID, requestId)
                     .findFirst()?.deleteOnCascade()
+        }
+    }
+
+    override fun deleteOutgoingRoomKeyRequestInState(state: OutgoingRoomKeyRequestState) {
+        doRealmTransaction(realmConfiguration) { realm ->
+            realm.where<OutgoingKeyRequestEntity>()
+                    .equalTo(OutgoingKeyRequestEntityFields.REQUEST_STATE_STR, state.name)
+                    .findAll()
+                    // I delete like this because I want to cascade delete replies?
+                    .onEach { it.deleteOnCascade() }
         }
     }
 

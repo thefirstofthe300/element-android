@@ -49,11 +49,11 @@ import org.matrix.android.sdk.internal.crypto.model.event.WithHeldCode
 @LargeTest
 class KeyShareTests : InstrumentedTest {
 
-    private val commonTestHelper = CommonTestHelper(context())
-    private val cryptoTestHelper = CryptoTestHelper(commonTestHelper)
-
     @Test
     fun test_DoNotSelfShareIfNotTrusted() {
+        val commonTestHelper = CommonTestHelper(context())
+        val cryptoTestHelper = CryptoTestHelper(commonTestHelper)
+
         val aliceSession = commonTestHelper.createAccount(TestConstants.USER_ALICE, SessionTestParams(true))
         Log.v("TEST", "=======> AliceSession 1 is ${aliceSession.sessionParams.deviceId}")
 
@@ -70,13 +70,17 @@ class KeyShareTests : InstrumentedTest {
         assertNotNull(room)
         Thread.sleep(4_000)
         assertTrue(room?.isEncrypted() == true)
+
         val sentEvent = commonTestHelper.sendTextMessage(room!!, "My Message", 1).first()
         val sentEventId = sentEvent.eventId
         val sentEventText = sentEvent.getLastMessageContent()?.body
 
-        // Open a new sessionx
+        // Open a new session
+        val aliceSession2 = commonTestHelper.logIntoAccount(aliceSession.myUserId, SessionTestParams(false))
+        // block key requesting for now as decrypt will send requests (room summary is trying to decrypt)
+        aliceSession2.cryptoService().enableKeyGossiping(false)
+        commonTestHelper.syncSession(aliceSession2)
 
-        val aliceSession2 = commonTestHelper.logIntoAccount(aliceSession.myUserId, SessionTestParams(true))
         Log.v("TEST", "=======> AliceSession 2 is ${aliceSession2.sessionParams.deviceId}")
 
         val roomSecondSessionPOV = aliceSession2.getRoom(roomId)
@@ -94,7 +98,10 @@ class KeyShareTests : InstrumentedTest {
         }
 
         val outgoingRequestsBefore = aliceSession2.cryptoService().getOutgoingRoomKeyRequests()
+        assertEquals("There should be no request as it's disabled", 0, outgoingRequestsBefore.size)
+
         // Try to request
+        aliceSession2.cryptoService().enableKeyGossiping(true)
         aliceSession2.cryptoService().requestRoomKeyForEvent(receivedEvent.root)
 
         val eventMegolmSessionId = receivedEvent.root.content.toModel<EncryptedEventContent>()?.sessionId
@@ -104,10 +111,6 @@ class KeyShareTests : InstrumentedTest {
         commonTestHelper.waitWithLatch { latch ->
             commonTestHelper.retryPeriodicallyWithLatch(latch) {
                 aliceSession2.cryptoService().getOutgoingRoomKeyRequests()
-                        .filter { req ->
-                            // filter out request that was known before
-                            !outgoingRequestsBefore.any { req.requestId == it.requestId }
-                        }
                         .let {
                             val outgoing = it.firstOrNull { it.sessionId == eventMegolmSessionId }
                             outGoingRequestId = outgoing?.requestId
@@ -155,7 +158,7 @@ class KeyShareTests : InstrumentedTest {
                 val outgoing = aliceSession2.cryptoService().getOutgoingRoomKeyRequests().firstOrNull { it.requestId == outGoingRequestId }
                 val reply = outgoing?.results?.firstOrNull { it.userId == aliceSession.myUserId && it.fromDevice == aliceSession.sessionParams.deviceId }
                 val resultCode = (reply?.result as? RequestResult.Failure)?.code
-                resultCode == WithHeldCode.UNAUTHORISED
+                resultCode == WithHeldCode.UNVERIFIED
             }
         }
 
@@ -188,6 +191,9 @@ class KeyShareTests : InstrumentedTest {
      */
     @Test
     fun test_reShareIfWasIntendedToBeShared() {
+        val commonTestHelper = CommonTestHelper(context())
+        val cryptoTestHelper = CryptoTestHelper(commonTestHelper)
+
         val testData = cryptoTestHelper.doE2ETestWithAliceAndBobInARoom(true)
         val aliceSession = testData.firstSession
         val roomFromAlice = aliceSession.getRoom(testData.roomId)!!
@@ -218,6 +224,9 @@ class KeyShareTests : InstrumentedTest {
      */
     @Test
     fun test_reShareToUnverifiedIfWasIntendedToBeShared() {
+        val commonTestHelper = CommonTestHelper(context())
+        val cryptoTestHelper = CryptoTestHelper(commonTestHelper)
+
         val testData = cryptoTestHelper.doE2ETestWithAliceInARoom(true)
         val aliceSession = testData.firstSession
         val roomFromAlice = aliceSession.getRoom(testData.roomId)!!
@@ -253,6 +262,9 @@ class KeyShareTests : InstrumentedTest {
      */
     @Test
     fun test_reShareFromTheEarliestKnownIndexWithOwnVerifiedSession() {
+        val commonTestHelper = CommonTestHelper(context())
+        val cryptoTestHelper = CryptoTestHelper(commonTestHelper)
+
         val testData = cryptoTestHelper.doE2ETestWithAliceAndBobInARoom(true)
         val aliceSession = testData.firstSession
         val bobSession = testData.secondSession!!
@@ -262,7 +274,9 @@ class KeyShareTests : InstrumentedTest {
         val sentEventMegolmSession = sentEvents.first().root.content.toModel<EncryptedEventContent>()!!.sessionId!!
 
         // Let alice now add a new session
-        val aliceNewSession = commonTestHelper.logIntoAccount(aliceSession.myUserId, SessionTestParams(true))
+        val aliceNewSession = commonTestHelper.logIntoAccount(aliceSession.myUserId, SessionTestParams(false))
+        aliceNewSession.cryptoService().enableKeyGossiping(false)
+        commonTestHelper.syncSession(aliceNewSession)
 
         // we wait bob first session to be aware of that session?
         commonTestHelper.waitWithLatch { latch ->
@@ -288,7 +302,8 @@ class KeyShareTests : InstrumentedTest {
         }
         assertEquals(sentEventMegolmSession, newEvent.root.content.toModel<EncryptedEventContent>()!!.sessionId)
 
-        // Request a first time, bob and alice should reply with unauthorized
+        // Request a first time, bob should reply with unauthorized and alice should reply with unverified
+        aliceNewSession.cryptoService().enableKeyGossiping(true)
         aliceNewSession.cryptoService().reRequestRoomKeyForEvent(newEvent.root)
 
         commonTestHelper.waitWithLatch { latch ->
@@ -308,6 +323,7 @@ class KeyShareTests : InstrumentedTest {
                 val bobDeviceReply = outgoing?.results
                         ?.firstOrNull { it.userId == bobSession.myUserId && it.fromDevice == bobSession.sessionParams.deviceId }
                 val result = bobDeviceReply?.result
+                Log.v("TEST", "bob device result is $result")
                 result != null && result is RequestResult.Success && result.chainIndex > 0
             }
         }
@@ -321,7 +337,7 @@ class KeyShareTests : InstrumentedTest {
                 .markedLocallyAsManuallyVerified(aliceNewSession.myUserId, aliceNewSession.sessionParams.deviceId!!)
 
         // Let's now try to request
-        aliceNewSession.cryptoService().reRequestRoomKeyForEvent(newEvent.root)
+        aliceNewSession.cryptoService().reRequestRoomKeyForEvent(sentEvents.first().root)
 
         commonTestHelper.waitWithLatch { latch ->
             commonTestHelper.retryPeriodicallyWithLatch(latch) {
@@ -367,6 +383,9 @@ class KeyShareTests : InstrumentedTest {
      */
     @Test
     fun test_dontCancelToEarly() {
+        val commonTestHelper = CommonTestHelper(context())
+        val cryptoTestHelper = CryptoTestHelper(commonTestHelper)
+
         val testData = cryptoTestHelper.doE2ETestWithAliceAndBobInARoom(true)
         val aliceSession = testData.firstSession
         val bobSession = testData.secondSession!!

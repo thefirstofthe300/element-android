@@ -75,7 +75,7 @@ internal class OutgoingKeyRequestManager @Inject constructor(
     // We only have one active key request per session, so we don't request if it's already requested
     // But it could make sense to check more the backup, as it's evolving.
     // We keep a stack as we consider that the key requested last is more likely to be on screen?
-    private val requestDiscardedBecauseAlreadySentThatCouldBeTriedWithBackup = Stack<String>()
+    private val requestDiscardedBecauseAlreadySentThatCouldBeTriedWithBackup = Stack<Pair<String, String>>()
 
     fun requestKeyForEvent(event: Event, force: Boolean) {
         val (targets, body) = getRoomKeyRequestTargetForEvent(event) ?: return
@@ -153,6 +153,20 @@ internal class OutgoingKeyRequestManager @Inject constructor(
         outgoingRequestScope.launch {
             sequencer.post {
                 internalQueueCancelRequest(sessionId, roomId, senderKey, fromIndex)
+            }
+        }
+    }
+
+    fun onSelfCrossSigningTrustChanged(newTrust: Boolean) {
+        if (newTrust) {
+            // we were previously not cross signed, but we are now
+            // so there is now more chances to get better replies for existing request
+            // Let's forget about sent request so that next time we try to decrypt we will resend requests
+            // We don't resend all because we don't want to generate a bulk of traffic
+            outgoingRequestScope.launch {
+                sequencer.post {
+                    cryptoStore.deleteOutgoingRoomKeyRequestInState(OutgoingRoomKeyRequestState.SENT)
+                }
             }
         }
     }
@@ -274,6 +288,15 @@ internal class OutgoingKeyRequestManager @Inject constructor(
     }
 
     private fun internalQueueRequest(requestBody: RoomKeyRequestBody, recipients: Map<String, List<String>>, fromIndex: Int, force: Boolean) {
+        if (!cryptoStore.isKeyGossipingEnabled()) {
+            // we might want to try backup?
+            if (requestBody.roomId != null && requestBody.sessionId != null) {
+                requestDiscardedBecauseAlreadySentThatCouldBeTriedWithBackup.push(requestBody.roomId to requestBody.sessionId)
+            }
+            Timber.tag(loggerTag.value).d("discarding request for ${requestBody.sessionId} as gossiping is disabled")
+            return
+        }
+
         Timber.tag(loggerTag.value).d("Queueing key request for ${requestBody.sessionId} force:$force")
         val existing = cryptoStore.getOutgoingRoomKeyRequest(requestBody)
         Timber.tag(loggerTag.value).v("Queueing key request exiting is ${existing?.state}")
@@ -293,7 +316,9 @@ internal class OutgoingKeyRequestManager @Inject constructor(
                     Timber.tag(loggerTag.value).d(".. force to request  ${requestBody.sessionId}")
                     cryptoStore.updateOutgoingRoomKeyRequestState(existing.requestId, OutgoingRoomKeyRequestState.CANCELLATION_PENDING_AND_WILL_RESEND)
                 } else {
-                    requestDiscardedBecauseAlreadySentThatCouldBeTriedWithBackup.push(existing.requestId)
+                    if (existing.roomId != null && existing.sessionId != null) {
+                        requestDiscardedBecauseAlreadySentThatCouldBeTriedWithBackup.push(existing.roomId to existing.sessionId)
+                    }
                 }
             }
             OutgoingRoomKeyRequestState.CANCELLATION_PENDING                 -> {
@@ -343,10 +368,7 @@ internal class OutgoingKeyRequestManager @Inject constructor(
         var currentCalls = 0
         measureTimeMillis {
             while (requestDiscardedBecauseAlreadySentThatCouldBeTriedWithBackup.isNotEmpty() && currentCalls < maxBackupCallsBySync) {
-                requestDiscardedBecauseAlreadySentThatCouldBeTriedWithBackup.pop().let {
-                    val req = cryptoStore.getOutgoingRoomKeyRequest(it)
-                    val sessionId = req?.sessionId ?: return@let
-                    val roomId = req.roomId ?: return@let
+                requestDiscardedBecauseAlreadySentThatCouldBeTriedWithBackup.pop().let { (roomId, sessionId) ->
                     // we want to rate limit that somehow :/
                     perSessionBackupQueryRateLimiter.tryFromBackupIfPossible(sessionId, roomId)
                 }

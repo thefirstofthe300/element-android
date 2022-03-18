@@ -80,6 +80,15 @@ internal interface IMXCryptoStore {
     fun setGlobalBlacklistUnverifiedDevices(block: Boolean)
 
     /**
+     * Enable or disable key gossiping.
+     * Default is true.
+     * If set to false this device won't send key_request nor will accept key forwarded
+     */
+    fun enableKeyGossiping(enable: Boolean)
+
+    fun isKeyGossipingEnabled(): Boolean
+
+    /**
      * Provides the rooms ids list in which the messages are not encrypted for the unverified devices.
      *
      * @return the room Ids list
@@ -384,6 +393,7 @@ internal interface IMXCryptoStore {
             event: Event)
 
     fun deleteOutgoingRoomKeyRequest(requestId: String)
+    fun deleteOutgoingRoomKeyRequestInState(state: OutgoingRoomKeyRequestState)
 
     fun saveIncomingKeyRequestAuditTrail(
             requestId: String,
