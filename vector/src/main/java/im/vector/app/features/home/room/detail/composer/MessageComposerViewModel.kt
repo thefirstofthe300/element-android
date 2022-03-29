@@ -823,7 +823,7 @@ class MessageComposerViewModel @AssistedInject constructor(
                 if (isCancelled) {
                     voiceMessageHelper.deleteRecording()
                 } else {
-                    voiceMessageHelper.stopRecording(convertForSending = true)?.let { audioType ->
+                    voiceMessageHelper.stopRecordingAndGetAudio(convertForSending = true)?.let { audioType ->
                         if (audioType.duration > 1000) {
                             room.sendMedia(
                                     attachment = audioType.toContentAttachmentData(isVoiceMessage = true),
@@ -859,7 +859,7 @@ class MessageComposerViewModel @AssistedInject constructor(
 
     private fun handleEndAllVoiceActions(deleteRecord: Boolean) = viewModelScope.launch {
         voiceMessageHelper.clearTracker()
-        voiceMessageHelper.stopAllVoiceActions(deleteRecord)
+        voiceMessageHelper.stopAllVoiceActionsAndGetAudio(deleteRecord)
     }
 
     private fun handleInitializeVoiceRecorder(attachmentData: ContentAttachmentData) {
@@ -881,7 +881,7 @@ class MessageComposerViewModel @AssistedInject constructor(
 
     private fun handleEntersBackground(composerText: String) = viewModelScope.launch {
         // Always stop all voice actions. It may be playing in timeline or active recording
-        val playingAudioContent = voiceMessageHelper.stopAllVoiceActions(deleteRecord = false)
+        val playingAudioContent = voiceMessageHelper.stopAllVoiceActionsAndGetAudio(deleteRecord = false)
         voiceMessageHelper.clearTracker()
 
         val isVoiceRecording = com.airbnb.mvrx.withState(this@MessageComposerViewModel) { it.isVoiceRecording }
