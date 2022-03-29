@@ -74,7 +74,7 @@ class CreateRoomFragment @Inject constructor(
 
     private lateinit var roomJoinRuleSharedActionViewModel: RoomJoinRuleSharedActionViewModel
 
-    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider)
+    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider, lifecycleScope)
 
     override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentCreateRoomBinding {
         return FragmentCreateRoomBinding.inflate(inflater, container, false)

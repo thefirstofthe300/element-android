@@ -76,7 +76,7 @@ class VoiceMessageHelper @Inject constructor(
         startRecordingAmplitudes()
     }
 
-    fun stopRecording(convertForSending: Boolean): MultiPickerAudioType? {
+    suspend fun stopRecording(convertForSending: Boolean): MultiPickerAudioType? {
         tryOrNull("Cannot stop media recording amplitude") {
             stopRecordingAmplitudes()
         }
@@ -249,7 +249,7 @@ class VoiceMessageHelper @Inject constructor(
         playbackTracker.clear()
     }
 
-    fun stopAllVoiceActions(deleteRecord: Boolean = true): MultiPickerAudioType? {
+    suspend fun stopAllVoiceActions(deleteRecord: Boolean = true): MultiPickerAudioType? {
         val audioType = stopRecording(convertForSending = false)
         stopPlayback()
         if (deleteRecord) {

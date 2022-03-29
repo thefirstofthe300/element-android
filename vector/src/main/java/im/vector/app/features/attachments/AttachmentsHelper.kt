@@ -25,6 +25,8 @@ import im.vector.app.core.dialogs.PhotoOrVideoDialog
 import im.vector.app.core.platform.Restorable
 import im.vector.app.features.settings.VectorPreferences
 import im.vector.lib.multipicker.MultiPicker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.matrix.android.sdk.BuildConfig
 import org.matrix.android.sdk.api.session.content.ContentAttachmentData
 import timber.log.Timber
@@ -35,7 +37,11 @@ private const val PENDING_TYPE_KEY = "PENDING_TYPE_KEY"
 /**
  * This class helps to handle attachments by providing simple methods.
  */
-class AttachmentsHelper(val context: Context, val callback: Callback) : Restorable {
+class AttachmentsHelper(
+        val context: Context,
+        val callback: Callback,
+        private val coroutineScope: CoroutineScope
+) : Restorable {
 
     interface Callback {
         fun onContactAttachmentReady(contactAttachment: ContactAttachment) {
@@ -121,7 +127,7 @@ class AttachmentsHelper(val context: Context, val callback: Callback) : Restorab
     /**
      * This methods aims to handle the result data.
      */
-    fun onFileResult(data: Intent?) {
+    fun onFileResult(data: Intent?) = coroutineScope.launch {
         callback.onContentAttachmentsReady(
                 MultiPicker.get(MultiPicker.FILE)
                         .getSelectedFiles(context, data)
@@ -129,7 +135,7 @@ class AttachmentsHelper(val context: Context, val callback: Callback) : Restorab
         )
     }
 
-    fun onAudioResult(data: Intent?) {
+    fun onAudioResult(data: Intent?) = coroutineScope.launch {
         callback.onContentAttachmentsReady(
                 MultiPicker.get(MultiPicker.AUDIO)
                         .getSelectedFiles(context, data)
@@ -137,7 +143,7 @@ class AttachmentsHelper(val context: Context, val callback: Callback) : Restorab
         )
     }
 
-    fun onContactResult(data: Intent?) {
+    fun onContactResult(data: Intent?) = coroutineScope.launch {
         MultiPicker.get(MultiPicker.CONTACT)
                 .getSelectedFiles(context, data)
                 .firstOrNull()
@@ -147,7 +153,7 @@ class AttachmentsHelper(val context: Context, val callback: Callback) : Restorab
                 }
     }
 
-    fun onMediaResult(data: Intent?) {
+    fun onMediaResult(data: Intent?) = coroutineScope.launch {
         callback.onContentAttachmentsReady(
                 MultiPicker.get(MultiPicker.MEDIA)
                         .getSelectedFiles(context, data)
@@ -155,7 +161,7 @@ class AttachmentsHelper(val context: Context, val callback: Callback) : Restorab
         )
     }
 
-    fun onCameraResult() {
+    fun onCameraResult() = coroutineScope.launch {
         captureUri?.let { captureUri ->
             MultiPicker.get(MultiPicker.CAMERA)
                     .getTakenPhoto(context, captureUri)
@@ -167,7 +173,7 @@ class AttachmentsHelper(val context: Context, val callback: Callback) : Restorab
         }
     }
 
-    fun onCameraVideoResult() {
+    fun onCameraVideoResult() = coroutineScope.launch {
         captureUri?.let { captureUri ->
             MultiPicker.get(MultiPicker.CAMERA_VIDEO)
                     .getTakenVideo(context, captureUri)
@@ -179,7 +185,7 @@ class AttachmentsHelper(val context: Context, val callback: Callback) : Restorab
         }
     }
 
-    fun onVideoResult(data: Intent?) {
+    fun onVideoResult(data: Intent?) = coroutineScope.launch {
         callback.onContentAttachmentsReady(
                 MultiPicker.get(MultiPicker.VIDEO)
                         .getSelectedFiles(context, data)
@@ -192,7 +198,7 @@ class AttachmentsHelper(val context: Context, val callback: Callback) : Restorab
      *
      * @return true if it can handle the intent data, false otherwise
      */
-    fun handleShareIntent(context: Context, intent: Intent): Boolean {
+    suspend fun handleShareIntent(context: Context, intent: Intent): Boolean {
         val type = intent.resolveType(context) ?: return false
         if (type.startsWith("image")) {
             callback.onContentAttachmentsReady(

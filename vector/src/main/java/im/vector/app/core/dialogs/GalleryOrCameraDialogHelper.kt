@@ -34,6 +34,8 @@ import im.vector.app.core.utils.registerForPermissionsResult
 import im.vector.app.features.media.createUCropWithDefaultSettings
 import im.vector.lib.multipicker.MultiPicker
 import im.vector.lib.multipicker.entity.MultiPickerImageType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -45,7 +47,8 @@ import java.io.File
 class GalleryOrCameraDialogHelper(
         // must implement GalleryOrCameraDialogHelper.Listener
         private val fragment: Fragment,
-        private val colorProvider: ColorProvider
+        private val colorProvider: ColorProvider,
+        private val coroutineScope: CoroutineScope,
 ) {
     interface Listener {
         fun onImageReady(uri: Uri?)
@@ -67,20 +70,24 @@ class GalleryOrCameraDialogHelper(
     private val takePhotoActivityResultLauncher = fragment.registerStartForActivityResult { activityResult ->
         if (activityResult.resultCode == Activity.RESULT_OK) {
             avatarCameraUri?.let { uri ->
-                MultiPicker.get(MultiPicker.CAMERA)
-                        .getTakenPhoto(activity, uri)
-                        ?.let { startUCrop(it) }
+                coroutineScope.launch {
+                    MultiPicker.get(MultiPicker.CAMERA)
+                            .getTakenPhoto(activity, uri)
+                            ?.let { startUCrop(it) }
+                }
             }
         }
     }
 
     private val pickImageActivityResultLauncher = fragment.registerStartForActivityResult { activityResult ->
         if (activityResult.resultCode == Activity.RESULT_OK) {
-            MultiPicker
-                    .get(MultiPicker.IMAGE)
-                    .getSelectedFiles(activity, activityResult.data)
-                    .firstOrNull()
-                    ?.let { startUCrop(it) }
+            coroutineScope.launch {
+                MultiPicker
+                        .get(MultiPicker.IMAGE)
+                        .getSelectedFiles(activity, activityResult.data)
+                        .firstOrNull()
+                        ?.let { startUCrop(it) }
+            }
         }
     }
 

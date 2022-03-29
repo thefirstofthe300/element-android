@@ -53,7 +53,7 @@ class CameraVideoPicker {
      * or result code is not Activity.RESULT_OK
      * or user cancelled the operation.
      */
-    fun getTakenVideo(context: Context, videoUri: Uri): MultiPickerVideoType? {
+    suspend fun getTakenVideo(context: Context, videoUri: Uri): MultiPickerVideoType? {
         return videoUri.toMultiPickerVideoType(context)
     }
 

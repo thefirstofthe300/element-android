@@ -27,6 +27,7 @@ import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -40,6 +41,7 @@ import im.vector.app.databinding.FragmentIncomingShareBinding
 import im.vector.app.features.attachments.AttachmentsHelper
 import im.vector.app.features.attachments.preview.AttachmentsPreviewActivity
 import im.vector.app.features.attachments.preview.AttachmentsPreviewArgs
+import kotlinx.coroutines.launch
 import org.matrix.android.sdk.api.session.content.ContentAttachmentData
 import org.matrix.android.sdk.api.session.room.model.RoomSummary
 import javax.inject.Inject
@@ -73,7 +75,7 @@ class IncomingShareFragment @Inject constructor(
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
         setupToolbar(views.incomingShareToolbar)
-        attachmentsHelper = AttachmentsHelper(requireContext(), this).register()
+        attachmentsHelper = AttachmentsHelper(requireContext(), this, lifecycleScope).register()
 
         viewModel.observeViewEvents {
             when (it) {
@@ -84,27 +86,29 @@ class IncomingShareFragment @Inject constructor(
         }
 
         val intent = vectorBaseActivity.intent
-        val isShareManaged = when (intent?.action) {
-            Intent.ACTION_SEND          -> {
-                var isShareManaged = attachmentsHelper.handleShareIntent(requireContext(), intent)
-                if (!isShareManaged) {
-                    isShareManaged = handleTextShare(intent)
-                }
+        lifecycleScope.launch {
+            val isShareManaged = when (intent?.action) {
+                Intent.ACTION_SEND          -> {
+                    var isShareManaged = attachmentsHelper.handleShareIntent(requireContext(), intent)
+                    if (!isShareManaged) {
+                        isShareManaged = handleTextShare(intent)
+                    }
 
-                // Direct share
-                if (intent.hasExtra(Intent.EXTRA_SHORTCUT_ID)) {
-                    val roomId = intent.getStringExtra(Intent.EXTRA_SHORTCUT_ID)!!
-                    sessionHolder.getSafeActiveSession()?.getRoomSummary(roomId)?.let { viewModel.handle(IncomingShareAction.ShareToRoom(it)) }
-                }
+                    // Direct share
+                    if (intent.hasExtra(Intent.EXTRA_SHORTCUT_ID)) {
+                        val roomId = intent.getStringExtra(Intent.EXTRA_SHORTCUT_ID)!!
+                        sessionHolder.getSafeActiveSession()?.getRoomSummary(roomId)?.let { viewModel.handle(IncomingShareAction.ShareToRoom(it)) }
+                    }
 
-                isShareManaged
+                    isShareManaged
+                }
+                Intent.ACTION_SEND_MULTIPLE -> attachmentsHelper.handleShareIntent(requireContext(), intent)
+                else                        -> false
             }
-            Intent.ACTION_SEND_MULTIPLE -> attachmentsHelper.handleShareIntent(requireContext(), intent)
-            else                        -> false
-        }
 
-        if (!isShareManaged) {
-            cannotManageShare(R.string.error_handling_incoming_share)
+            if (!isShareManaged) {
+                cannotManageShare(R.string.error_handling_incoming_share)
+            }
         }
 
         views.incomingShareSearchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {

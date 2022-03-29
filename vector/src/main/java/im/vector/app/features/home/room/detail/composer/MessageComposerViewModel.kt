@@ -817,25 +817,26 @@ class MessageComposerViewModel @AssistedInject constructor(
         }
     }
 
-    private fun handleEndRecordingVoiceMessage(isCancelled: Boolean, rootThreadEventId: String? = null) {
-        voiceMessageHelper.stopPlayback()
-        if (isCancelled) {
-            voiceMessageHelper.deleteRecording()
-        } else {
-            voiceMessageHelper.stopRecording(convertForSending = true)?.let { audioType ->
-                if (audioType.duration > 1000) {
-                    room.sendMedia(
-                            attachment = audioType.toContentAttachmentData(isVoiceMessage = true),
-                            compressBeforeSending = false,
-                            roomIds = emptySet(),
-                            rootThreadEventId = rootThreadEventId)
-                } else {
+    private fun handleEndRecordingVoiceMessage(isCancelled: Boolean, rootThreadEventId: String? = null) =
+            viewModelScope.launch {
+                voiceMessageHelper.stopPlayback()
+                if (isCancelled) {
                     voiceMessageHelper.deleteRecording()
+                } else {
+                    voiceMessageHelper.stopRecording(convertForSending = true)?.let { audioType ->
+                        if (audioType.duration > 1000) {
+                            room.sendMedia(
+                                    attachment = audioType.toContentAttachmentData(isVoiceMessage = true),
+                                    compressBeforeSending = false,
+                                    roomIds = emptySet(),
+                                    rootThreadEventId = rootThreadEventId)
+                        } else {
+                            voiceMessageHelper.deleteRecording()
+                        }
+                    }
                 }
+                handleEnterRegularMode(MessageComposerAction.EnterRegularMode(text = "", fromSharing = false))
             }
-        }
-        handleEnterRegularMode(MessageComposerAction.EnterRegularMode(text = "", fromSharing = false))
-    }
 
     private fun handlePlayOrPauseVoicePlayback(action: MessageComposerAction.PlayOrPauseVoicePlayback) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -856,7 +857,7 @@ class MessageComposerViewModel @AssistedInject constructor(
         voiceMessageHelper.startOrPauseRecordingPlayback()
     }
 
-    private fun handleEndAllVoiceActions(deleteRecord: Boolean) {
+    private fun handleEndAllVoiceActions(deleteRecord: Boolean) = viewModelScope.launch {
         voiceMessageHelper.clearTracker()
         voiceMessageHelper.stopAllVoiceActions(deleteRecord)
     }
@@ -878,12 +879,12 @@ class MessageComposerViewModel @AssistedInject constructor(
         voiceMessageHelper.movePlaybackTo(action.eventId, action.percentage, action.duration)
     }
 
-    private fun handleEntersBackground(composerText: String) {
+    private fun handleEntersBackground(composerText: String) = viewModelScope.launch {
         // Always stop all voice actions. It may be playing in timeline or active recording
         val playingAudioContent = voiceMessageHelper.stopAllVoiceActions(deleteRecord = false)
         voiceMessageHelper.clearTracker()
 
-        val isVoiceRecording = com.airbnb.mvrx.withState(this) { it.isVoiceRecording }
+        val isVoiceRecording = com.airbnb.mvrx.withState(this@MessageComposerViewModel) { it.isVoiceRecording }
         if (isVoiceRecording) {
             viewModelScope.launch {
                 playingAudioContent?.toContentAttachmentData()?.let { voiceDraft ->

@@ -69,7 +69,7 @@ class RoomSettingsFragment @Inject constructor(
     private lateinit var roomJoinRuleSharedActionViewModel: RoomJoinRuleSharedActionViewModel
 
     private val roomProfileArgs: RoomProfileArgs by args()
-    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider)
+    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider, lifecycleScope)
 
     override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentRoomSettingGenericBinding {
         return FragmentRoomSettingGenericBinding.inflate(inflater, container, false)

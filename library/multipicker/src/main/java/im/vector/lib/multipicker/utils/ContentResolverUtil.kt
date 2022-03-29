@@ -16,6 +16,7 @@
 
 package im.vector.lib.multipicker.utils
 
+import android.content.ContentResolver
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -25,8 +26,10 @@ import androidx.core.database.getStringOrNull
 import im.vector.lib.multipicker.entity.MultiPickerAudioType
 import im.vector.lib.multipicker.entity.MultiPickerImageType
 import im.vector.lib.multipicker.entity.MultiPickerVideoType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-internal fun Uri.toMultiPickerImageType(context: Context): MultiPickerImageType? {
+internal suspend fun Uri.toMultiPickerImageType(context: Context): MultiPickerImageType? {
     val projection = arrayOf(
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.SIZE
@@ -64,7 +67,7 @@ internal fun Uri.toMultiPickerImageType(context: Context): MultiPickerImageType?
     }
 }
 
-internal fun Uri.toMultiPickerVideoType(context: Context): MultiPickerVideoType? {
+internal suspend fun Uri.toMultiPickerVideoType(context: Context): MultiPickerVideoType? {
     val projection = arrayOf(
             MediaStore.Video.Media.DISPLAY_NAME,
             MediaStore.Video.Media.SIZE
@@ -88,7 +91,7 @@ internal fun Uri.toMultiPickerVideoType(context: Context): MultiPickerVideoType?
             var height = 0
             var orientation = 0
 
-            context.contentResolver.openFileDescriptor(this, "r")?.use { pfd ->
+            context.contentResolver.openFileDescriptorOnIo(this, "r")?.use { pfd ->
                 val mediaMetadataRetriever = MediaMetadataRetriever()
                 mediaMetadataRetriever.setDataSource(pfd.fileDescriptor)
                 duration = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
@@ -113,7 +116,14 @@ internal fun Uri.toMultiPickerVideoType(context: Context): MultiPickerVideoType?
     }
 }
 
-fun Uri.toMultiPickerAudioType(context: Context): MultiPickerAudioType? {
+private suspend fun ContentResolver.openFileDescriptorOnIo(uri: Uri, mode: String) =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                openFileDescriptor(uri, mode)
+            }.getOrNull()
+        }
+
+suspend fun Uri.toMultiPickerAudioType(context: Context): MultiPickerAudioType? {
     val projection = arrayOf(
             MediaStore.Audio.Media.DISPLAY_NAME,
             MediaStore.Audio.Media.SIZE
@@ -134,7 +144,7 @@ fun Uri.toMultiPickerAudioType(context: Context): MultiPickerAudioType? {
             val size = cursor.getLongOrNull(sizeColumn) ?: 0
             var duration = 0L
 
-            context.contentResolver.openFileDescriptor(this, "r")?.use { pfd ->
+            context.contentResolver.openFileDescriptorOnIo(this, "r")?.use { pfd ->
                 val mediaMetadataRetriever = MediaMetadataRetriever()
                 mediaMetadataRetriever.setDataSource(pfd.fileDescriptor)
                 duration = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L

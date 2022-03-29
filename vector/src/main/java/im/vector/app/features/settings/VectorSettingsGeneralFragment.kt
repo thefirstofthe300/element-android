@@ -80,7 +80,7 @@ class VectorSettingsGeneralFragment @Inject constructor(
     override var titleRes = R.string.settings_general_title
     override val preferenceXmlRes = R.xml.vector_settings_general
 
-    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider)
+    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider, lifecycleScope)
 
     private val mUserSettingsCategory by lazy {
         findPreference<PreferenceCategory>(VectorPreferences.SETTINGS_USER_SETTINGS_PREFERENCE_KEY)!!

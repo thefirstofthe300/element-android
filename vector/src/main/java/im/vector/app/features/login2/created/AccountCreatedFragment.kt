@@ -22,6 +22,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -58,7 +59,7 @@ class AccountCreatedFragment @Inject constructor(
 
     private val viewModel: AccountCreatedViewModel by fragmentViewModel()
 
-    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider)
+    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider, lifecycleScope)
 
     override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentLoginAccountCreatedBinding {
         return FragmentLoginAccountCreatedBinding.inflate(inflater, container, false)

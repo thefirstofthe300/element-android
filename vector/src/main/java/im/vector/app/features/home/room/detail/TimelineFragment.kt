@@ -292,7 +292,7 @@ class TimelineFragment @Inject constructor(
         private const val ircPattern = " (IRC)"
     }
 
-    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider)
+    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider, lifecycleScope)
 
     private val timelineArgs: TimelineArgs by args()
     private val glideRequests by lazy {
@@ -358,7 +358,7 @@ class TimelineFragment @Inject constructor(
         sharedActionViewModel = activityViewModelProvider.get(MessageSharedActionViewModel::class.java)
         sharedActivityActionViewModel = activityViewModelProvider.get(RoomDetailSharedActionViewModel::class.java)
         knownCallsViewModel = activityViewModelProvider.get(SharedKnownCallsViewModel::class.java)
-        attachmentsHelper = AttachmentsHelper(requireContext(), this).register()
+        attachmentsHelper = AttachmentsHelper(requireContext(), this, lifecycleScope).register()
         callActionsHandler = StartCallActionsHandler(
                 roomId = timelineArgs.roomId,
                 fragment = this,
@@ -1490,8 +1490,10 @@ class TimelineFragment @Inject constructor(
                 messageComposerViewModel.handle(MessageComposerAction.EnterRegularMode(views.composerLayout.text.toString(), false))
             }
 
-            override fun onRichContentSelected(contentUri: Uri): Boolean {
-                return sendUri(contentUri)
+            override fun onRichContentSelected(contentUri: Uri) {
+                lifecycleScope.launch {
+                    sendUri(contentUri)
+                }
             }
 
             override fun onTextChanged(text: CharSequence) {
@@ -1533,7 +1535,7 @@ class TimelineFragment @Inject constructor(
                 .launchIn(viewLifecycleOwner.lifecycleScope)
     }
 
-    private fun sendUri(uri: Uri): Boolean {
+    private suspend fun sendUri(uri: Uri): Boolean {
         val shareIntent = Intent(Intent.ACTION_SEND, uri)
         val isHandled = attachmentsHelper.handleShareIntent(requireContext(), shareIntent)
         if (!isHandled) {

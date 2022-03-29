@@ -16,6 +16,7 @@
 
 package im.vector.lib.multipicker.utils
 
+import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -23,16 +24,20 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import androidx.exifinterface.media.ExifInterface
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 object ImageUtils {
 
-    fun getBitmap(context: Context, uri: Uri): Bitmap? {
+    suspend fun getBitmap(context: Context, uri: Uri): Bitmap? {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+                runCatching {
+                    ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+                }.getOrThrow()
             } else {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                context.contentResolver.openInputStreamOnIo(uri)?.use { inputStream ->
                     BitmapFactory.decodeStream(inputStream)
                 }
             }
@@ -42,13 +47,22 @@ object ImageUtils {
         }
     }
 
-    fun getOrientation(context: Context, uri: Uri): Int {
+    private suspend fun ContentResolver.openInputStreamOnIo(uri: Uri) =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    openInputStream(uri)
+                }.getOrNull()
+            }
+
+    suspend fun getOrientation(context: Context, uri: Uri): Int {
         var orientation = 0
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+        context.contentResolver.openInputStreamOnIo(uri)?.use { inputStream ->
             try {
-                ExifInterface(inputStream).let {
-                    orientation = it.rotationDegrees
-                }
+                runCatching {
+                    ExifInterface(inputStream).let {
+                        orientation = it.rotationDegrees
+                    }
+                }.getOrThrow()
             } catch (e: Exception) {
                 Timber.e(e, "Cannot read orientation: %s", uri.toString())
             }

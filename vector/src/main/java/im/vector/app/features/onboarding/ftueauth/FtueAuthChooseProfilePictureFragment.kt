@@ -23,6 +23,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.view.isInvisible
+import androidx.lifecycle.lifecycleScope
 import com.airbnb.mvrx.withState
 import im.vector.app.R
 import im.vector.app.core.di.ActiveSessionHolder
@@ -42,7 +43,7 @@ class FtueAuthChooseProfilePictureFragment @Inject constructor(
         colorProvider: ColorProvider
 ) : AbstractFtueAuthFragment<FragmentFtueProfilePictureBinding>(), GalleryOrCameraDialogHelper.Listener {
 
-    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider)
+    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider, lifecycleScope)
     private val avatarRenderer: AvatarRenderer by lazy { requireContext().singletonEntryPoint().avatarRenderer() }
 
     override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentFtueProfilePictureBinding {

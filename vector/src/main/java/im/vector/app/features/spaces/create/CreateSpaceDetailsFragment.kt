@@ -21,6 +21,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.lifecycle.lifecycleScope
 import com.airbnb.mvrx.activityViewModel
 import im.vector.app.core.dialogs.GalleryOrCameraDialogHelper
 import im.vector.app.core.extensions.configureWith
@@ -42,7 +43,7 @@ class CreateSpaceDetailsFragment @Inject constructor(
     override fun getBinding(inflater: LayoutInflater, container: ViewGroup?) =
             FragmentSpaceCreateGenericEpoxyFormBinding.inflate(layoutInflater, container, false)
 
-    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider)
+    private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider, lifecycleScope)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
